@@ -12,6 +12,10 @@ This Terraform module deploys **Azure Managed Redis** (Redis Enterprise) instanc
 - Redis modules support (RediSearch, RedisJSON, RedisBloom, RedisTimeSeries)
 - TLS 1.2 support with optional non-SSL port
 - Public network access controls
+- Managed identity support (SystemAssigned and UserAssigned)
+- Optional customer-managed key (CMK) encryption
+- Optional high availability mode and availability zones
+- Database access policy assignments for Entra ID principals
 - Optional private endpoints for secure connectivity
 - Management locks and RBAC role assignments
 - Configurable timeouts for long-running operations
@@ -32,6 +36,27 @@ module "redis" {
   enable_non_ssl_port = false
   clustering_policy   = "EnterpriseCluster"
   eviction_policy     = "AllKeysLRU"
+
+  managed_identities = {
+    system_assigned            = true
+    user_assigned_resource_ids = [azurerm_user_assigned_identity.example.id]
+  }
+
+  high_availability = "Enabled"
+  zones             = ["1", "2", "3"]
+
+  customer_managed_key_encryption = {
+    key_encryption_key_url             = "https://kv-example.vault.azure.net/keys/redis-cmk/00000000000000000000000000000000"
+    identity_type                      = "UserAssignedIdentity"
+    user_assigned_identity_resource_id = azurerm_user_assigned_identity.example.id
+  }
+
+  access_policy_assignments = {
+    app_identity = {
+      object_id          = "00000000-0000-0000-0000-000000000000"
+      access_policy_name = "default"
+    }
+  }
 }
 ```
 
@@ -134,6 +159,22 @@ Type: `string`
 
 Default: `"EnterpriseCluster"`
 
+### <a name="input_customer_managed_key_encryption"></a> [customer\_managed\_key\_encryption](#input\_customer\_managed\_key\_encryption)
+
+Description: Optional customer-managed key encryption settings for the Redis Enterprise cluster.
+
+Type:
+
+```hcl
+object({
+    key_encryption_key_url             = string
+    identity_type                      = string
+    user_assigned_identity_resource_id = optional(string)
+  })
+```
+
+Default: `null`
+
 ### <a name="input_enable_non_ssl_port"></a> [enable\_non\_ssl\_port](#input\_enable\_non\_ssl\_port)
 
 Description: Enable non-SSL port (6379) for Redis cache. Default: false (SSL only).
@@ -167,6 +208,14 @@ Default: "AllKeysLRU"
 Type: `string`
 
 Default: `"AllKeysLRU"`
+
+### <a name="input_high_availability"></a> [high\_availability](#input\_high\_availability)
+
+Description: Optional high availability mode for the Redis Enterprise cluster.
+
+Type: `string`
+
+Default: `null`
 
 ### <a name="input_lock"></a> [lock](#input\_lock)
 
@@ -376,6 +425,14 @@ object({
 ```
 
 Default: `null`
+
+### <a name="input_zones"></a> [zones](#input\_zones)
+
+Description: Optional set of availability zones for the Redis Enterprise cluster.
+
+Type: `set(string)`
+
+Default: `[]`
 
 ## Outputs
 
